@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PulseGuard Hybrid AI — #BuildHybridAI 2026</title>
+
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #0b1020;
+      color: #f1f5f9;
+      padding: 16px;
+    }
+
+    .container {
+      max-width: 780px;
+      margin: 0 auto;
+      background: #131c31;
+      border: 1px solid #243252;
+      border-radius: 14px;
+      padding: 18px;
+    }
+
+    .header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 6px;
+    }
+
+    h1 { margin: 0; font-size: 1.4rem; }
+
+    .badge {
+      font-size: 0.78rem;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #93c5fd;
+    }
+
+    .sub {
+      color: #94a3b8;
+      font-size: 0.9rem;
+      margin-bottom: 16px;
+    }
+
+    label {
+      display: block;
+      font-size: 0.85rem;
+      color: #cbd5e1;
+      margin-bottom: 6px;
+    }
+
+    select, textarea, button {
+      width: 100%;
+      border-radius: 10px;
+      font-size: 0.95rem;
+    }
+
+    select, textarea {
+      background: #0b1020;
+      color: #f8fafc;
+      border: 1px solid #334155;
+      padding: 10px 12px;
+      margin-bottom: 12px;
+    }
+
+    textarea {
+      min-height: 120px;
+      resize: vertical;
+    }
+
+    button {
+      background: #2563eb;
+      color: #ffffff;
+      border: none;
+      padding: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .meta {
+      margin-top: 14px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: #0b1020;
+      border: 1px solid #243252;
+      font-size: 0.85rem;
+      color: #93c5fd;
+      overflow-wrap: anywhere;
+    }
+
+    .output {
+      margin-top: 12px;
+      padding: 14px;
+      border-radius: 10px;
+      background: #0b1020;
+      border: 1px solid #334155;
+      white-space: pre-wrap;
+      line-height: 1.5;
+      min-height: 90px;
+      overflow-wrap: anywhere;
+    }
+  </style>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "firebase/app": "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js",
+        "firebase/app-check": "https://www.gstatic.com/firebasejs/11.6.0/firebase-app-check.js",
+        "firebase/ai": "https://www.gstatic.com/firebasejs/11.6.0/firebase-ai.js"
+      }
+    }
+  </script>
+</head>
+
+<body>
+  <div class="container">
+    <div class="header-row">
+      <h1>PulseGuard Hybrid AI</h1>
+      <span id="appCheckBadge" class="badge">App Check: Pending</span>
+    </div>
+
+    <div class="sub">
+      Firebase AI Logic + On-Device AI &amp; Cloud Fallback
+    </div>
+
+    <label for="routingMode">Routing Mode</label>
+    <select id="routingMode">
+      <option value="auto" selected>Auto (On-Device first, Cloud fallback)</option>
+      <option value="local">Prefer On-Device / Local Model</option>
+      <option value="cloud">Force Cloud (Firebase AI Logic)</option>
+    </select>
+
+    <label for="promptInput">Enter text to summarize, analyze, or process</label>
+    <textarea
+      id="promptInput"
+      placeholder="Paste notes, incident text, or a long document..."
+    ></textarea>
+
+    <button id="runBtn" type="button">Run Hybrid AI</button>
+
+    <div id="statusBox" class="meta">Status: Ready</div>
+    <div id="outputBox" class="output">Output will appear here...</div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "firebase/app";
+    import { initializeAppCheck, ReCaptchaV3Provider } from "firebase/app-check";
+    import { getAI, getGenerativeModel, GoogleAIBackend } from "firebase/ai";
+
+    // Safe public placeholders: replace locally before live cloud runs.
+    const firebaseConfig = {
+      apiKey: "REPLACE_WITH_API_KEY",
+      authDomain: "REPLACE_WITH_PROJECT_ID.firebaseapp.com",
+      projectId: "REPLACE_WITH_PROJECT_ID",
+      storageBucket: "REPLACE_WITH_PROJECT_ID.firebasestorage.app",
+      messagingSenderId: "REPLACE_WITH_SENDER_ID",
+      appId: "REPLACE_WITH_APP_ID"
+    };
+
+    const RECAPTCHA_SITE_KEY = "REPLACE_WITH_RECAPTCHA_SITE_KEY";
+    const CLOUD_MODEL = "gemini-2.5-flash";
+    const LOCAL_AUTO_CHAR_LIMIT = 1600;
+
+    let firebaseApp = null;
+    let appCheckInitialized = false;
+
+    const badgeEl = document.getElementById("appCheckBadge");
+    const modeEl = document.getElementById("routingMode");
+    const inputEl = document.getElementById("promptInput");
+    const runBtn = document.getElementById("runBtn");
+    const statusEl = document.getElementById("statusBox");
+    const outputEl = document.getElementById("outputBox");
+
+    function updateAppCheckBadge() {
+      badgeEl.textContent = appCheckInitialized
+        ? "App Check: Initialized"
+        : "App Check: Config Needed";
+    }
+
+    function initFirebaseOnce() {
+      if (firebaseApp) return firebaseApp;
+
+      if (
+        !firebaseConfig.apiKey ||
+        firebaseConfig.apiKey.startsWith("REPLACE_WITH_")
+      ) {
+        throw new Error(
+          "Firebase configuration is missing. Add your Firebase Web App config before cloud inference."
+        );
+      }
+
+      firebaseApp = initializeApp(firebaseConfig);
+
+      if (
+        RECAPTCHA_SITE_KEY &&
+        !RECAPTCHA_SITE_KEY.startsWith("REPLACE_WITH_")
+      ) {
+        initializeAppCheck(firebaseApp, {
+          provider: new ReCaptchaV3Provider(RECAPTCHA_SITE_KEY),
+          isTokenAutoRefreshEnabled: true
+        });
+        appCheckInitialized = true;
+      }
+
+      updateAppCheckBadge();
+      return firebaseApp;
+    }
+
+    async function getLocalModelApi(promptText, mode) {
+      if (mode === "cloud") return null;
+
+      const lm = window.ai?.languageModel || window.LanguageModel || null;
+      if (!lm || typeof lm.availability !== "function") {
+        return null;
+      }
+
+      if (mode === "auto" && promptText.length > LOCAL_AUTO_CHAR_LIMIT) {
+        return null;
+      }
+
+      try {
+        const state = await lm.availability();
+        const readyStates = ["available", "readily", "after-download"];
+        return readyStates.includes(state) ? lm : null;
+      } catch {
+        return null;
+      }
+    }
+
+    async function runOnDevice(lm, promptText) {
+      const session = await lm.create({
+        systemPrompt:
+          "You are PulseGuard Hybrid AI running on-device. Be fast, clear, and concise."
+      });
+      try {
+        return await session.prompt(promptText);
+      } finally {
+        if (typeof session.destroy === "function") {
+          session.destroy();
+        }
+      }
+    }
+
+    async function runOnCloud(promptText) {
+      const app = initFirebaseOnce();
+      const ai = getAI(app, { backend: new GoogleAIBackend() });
+      const model = getGenerativeModel(ai, {
+        model: CLOUD_MODEL,
+        systemInstruction:
+          "You are PulseGuard Hybrid AI running via Firebase AI Logic cloud inference."
+      });
+
+      const result = await model.generateContent(promptText);
+
+      if (typeof result?.response?.text === "function") {
+        return result.response.text();
+      }
+      if (typeof result?.text === "function") {
+        return result.text();
+      }
+
+      throw new Error("Cloud AI returned an unexpected response format.");
+    }
+
+    runBtn.addEventListener("click", async () => {
+      const promptText = inputEl.value.trim();
+      const mode = modeEl.value;
+
+      if (!promptText) {
+        statusEl.textContent = "Status: Please enter some text first.";
+        return;
+      }
+
+      runBtn.disabled = true;
+      outputEl.textContent = "";
+      const t0 = performance.now();
+      statusEl.textContent = "Status: Evaluating hybrid route...";
+
+      try {
+        const localModel = await getLocalModelApi(promptText, mode);
+        let answer = "";
+        let routeLabel = "";
+
+        if (mode === "cloud") {
+          statusEl.textContent = "Status: Routing to Firebase AI Logic (Cloud)...";
+          answer = await runOnCloud(promptText);
+          routeLabel = "Cloud (Firebase AI Logic)";
+        } else if (mode === "local") {
+          if (!localModel) {
+            throw new Error(
+              "On-device AI model is not ready/available in this browser. Switch to Auto or Cloud mode."
+            );
+          }
+          statusEl.textContent = "Status: Running On-Device AI...";
+          answer = await runOnDevice(localModel, promptText);
+          routeLabel = "On-Device (Local)";
+        } else {
+          if (localModel) {
+            try {
+              statusEl.textContent = "Status: Running On-Device AI...";
+              answer = await runOnDevice(localModel, promptText);
+              routeLabel = "On-Device (Local)";
+            } catch {
+              statusEl.textContent =
+                "Status: On-device unavailable during run. Falling back to Cloud...";
+              answer = await runOnCloud(promptText);
+              routeLabel = "Cloud (Fallback)";
+            }
+          } else {
+            statusEl.textContent =
+              "Status: On-device model not ready/long prompt. Routing to Cloud...";
+            answer = await runOnCloud(promptText);
+            routeLabel = "Cloud (Firebase AI Logic)";
+          }
+        }
+
+        const ms = Math.round(performance.now() - t0);
+        statusEl.textContent = `Status: Completed via ${routeLabel} in ${ms} ms`;
+        outputEl.textContent = answer || "(Empty response)";
+      } catch (err) {
+        const ms = Math.round(performance.now() - t0);
+        statusEl.textContent = `Status: Error (${ms} ms)`;
+        outputEl.textContent = err?.message || String(err);
+      } finally {
+        runBtn.disabled = false;
+      }
+    });
+  </script>
+</body>
+  </html>
+  
