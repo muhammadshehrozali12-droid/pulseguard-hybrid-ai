@@ -49,9 +49,9 @@ pre{white-space:pre-wrap;background:#020617;border:1px solid #1e293b;border-radi
 <label><b>1. Incident / Prompt</b></label>
 <textarea id="promptInput" placeholder="Describe the incident... e.g. CPU utilization jumped to 96% for 6 minutes, p99 latency hit 2400ms after recent deploy."></textarea>
 <div style="margin-top:10px">
-<button class="preset" data-preset="cpu">⚡ CPU Spike</button>
-<button class="preset" data-preset="auth">🔐 Auth Anomaly</button>
-<button class="preset" data-preset="ticket">🎫 Support Ticket</button>
+<button type="button" class="preset" data-preset="cpu">⚡ CPU Spike</button>
+<button type="button" class="preset" data-preset="auth">🔐 Auth Anomaly</button>
+<button type="button" class="preset" data-preset="ticket">🎫 Support Ticket</button>
 </div>
 <div class="row" style="margin-top:12px">
 <div><label><b>2. Routing Mode</b></label>
@@ -86,12 +86,25 @@ pre{white-space:pre-wrap;background:#020617;border:1px solid #1e293b;border-radi
 </div>
 
 <script type="module">
-import { runCloudTriage, isFirebaseConfigured, shouldUseCloud, HYBRID_CONFIG } from './firebase.js';
+// SAFE IMPORT - If Firebase fails, Local still works. This was the bug before.
+let runCloudTriage = null;
+let isFirebaseConfigured = () => false;
+let shouldUseCloud = (p, m) => m === "cloud" || (m === "auto" && p.length > 240);
+let HYBRID_CONFIG = { localWordLimit: 40, localCharLimit: 240, localModel: "Gemini Nano 4 (On-Device)" };
+try {
+  const fb = await import('./firebase.js');
+  if (fb.runCloudTriage) runCloudTriage = fb.runCloudTriage;
+  if (fb.isFirebaseConfigured) isFirebaseConfigured = fb.isFirebaseConfigured;
+  if (fb.shouldUseCloud) shouldUseCloud = fb.shouldUseCloud;
+  if (fb.HYBRID_CONFIG) HYBRID_CONFIG = fb.HYBRID_CONFIG;
+} catch (e) {
+  console.log("Firebase module fallback to local only:", e.message);
+}
 
 const PRESETS = {
   cpu: "ALERT [prod-api-02]: CPU utilization jumped to 96% for 6 minutes, p99 latency hit 2400ms after recent deploy. Error rate 4.2%. Suggest triage.",
   auth: "SECURITY [iam-audit]: 48 failed login attempts in 90 seconds from 2 rotating subnets targeting service accounts. Block or investigate?",
-  ticket: "SUPPORT [tier-2]: Customer reports intermittent checkout timeout on mobile web when cart has >15 items. Checkout success dropped 12% in last hour."
+  ticket: "SUPPORT [tier-2]: Customer reports intermittent checkout timeout on mobile web when cart has more than 15 items. Checkout success dropped 12% in last hour."
 };
 
 const promptInput = document.getElementById('promptInput');
@@ -110,16 +123,16 @@ const historyList = document.getElementById('historyList');
 let hasHistory = false;
 
 document.querySelectorAll('.preset').forEach(btn => {
-  btn.addEventListener('click', () => {
+  btn.addEventListener('click', (e) => {
+    e.preventDefault();
     promptInput.value = PRESETS[btn.getAttribute('data-preset')] || "";
     promptInput.focus();
   });
 });
 
-// LOCAL TRIAGE - Same Structured Format as Cloud (Hybrid Consistency)
 function buildLocalTriage(raw) {
   const t = raw.toLowerCase();
-  let severity = "MEDIUM", confidence = 78, escalate = "NO";
+  let severity = "MEDIUM", confidence = 78, escalate = "NO - Monitor, fix in next deploy";
   let evidence = "General incident signals detected";
   if (t.includes("96%") || t.includes("2400ms") || t.includes("down") || t.includes("critical")) { severity = "HIGH"; confidence = 86; escalate = "YES - High latency + CPU spike, on-call needed"; evidence = "CPU 96%, p99 latency 2400ms, error rate 4.2%"; }
   if (t.includes("failed login") || t.includes("48 failed") || t.includes("security") || t.includes("attack")) { severity = "HIGH"; confidence = 91; escalate = "YES - Possible brute-force, block subnets"; evidence = "48 failed logins in 90s, 2 rotating subnets"; }
@@ -134,7 +147,8 @@ function addLog(route, ms, reason) {
   historyList.prepend(li);
 }
 
-runBtn.addEventListener('click', async () => {
+runBtn.addEventListener('click', async (e) => {
+  e.preventDefault();
   const raw = (promptInput.value || "").trim();
   if (!raw) { outputBox.textContent = "Please enter text or click a preset first."; return; }
   const start = performance.now();
@@ -151,8 +165,7 @@ runBtn.addEventListener('click', async () => {
     else if (mode === "local") reason = "User selected LOCAL -> Fast on-device triage";
     else if (mode === "cloud") reason = "User selected CLOUD -> Firebase AI Logic";
     else reason = wantCloud ? `Auto: ${raw.split(/\s+/).length} words / ${raw.length} chars > limit (${HYBRID_CONFIG.localWordLimit} words) -> CLOUD` : `Auto: ${raw.split(/\s+/).length} words / ${raw.length} chars <= limit -> LOCAL for speed + privacy`;
-
-    if (wantCloud && isFirebaseConfigured()) {
+    if (wantCloud && runCloudTriage && isFirebaseConfigured()) {
       const cloudRes = await runCloudTriage(raw);
       if (cloudRes && cloudRes.success && cloudRes.text) {
         cloudText = cloudRes.text;
@@ -166,7 +179,6 @@ runBtn.addEventListener('click', async () => {
       usedRoute = "LOCAL";
       reason += " | Placeholder config on public demo -> Safe Local Fallback";
     }
-
     const latency = Math.round(performance.now() - start);
     if (cloudText) {
       outputBox.textContent = cloudText;
@@ -182,8 +194,8 @@ runBtn.addEventListener('click', async () => {
     latencyVal.textContent = latency + " ms";
     reasonVal.textContent = reason;
     addLog(usedRoute, latency, reason);
-  } catch (e) {
-    console.error(e);
+  } catch (err) {
+    console.error(err);
     outputBox.textContent = buildLocalTriage(raw);
     statusVal.textContent = "Completed (Fallback)";
     routeVal.textContent = "LOCAL";
