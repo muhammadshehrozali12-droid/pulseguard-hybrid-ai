@@ -45,7 +45,7 @@
       flex-wrap: wrap;
       margin-bottom: 10px;
     }
-    .preset-btn {
+    .preset-btn, .secondary-btn {
       background: #0f172a;
       color: #e2e8f0;
       border: 1px solid #334155;
@@ -114,7 +114,14 @@
       border-radius: 10px;
       padding: 12px;
     }
-    .box-title { font-size: 0.82rem; color: #93c5fd; margin-bottom: 6px; font-weight: 600; }
+    .box-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+    .box-title { font-size: 0.82rem; color: #93c5fd; font-weight: 600; }
     pre {
       margin: 0;
       white-space: pre-wrap;
@@ -180,12 +187,18 @@
     </div>
 
     <div class="box">
-      <div class="box-title">AI Triage Output</div>
+      <div class="box-header">
+        <span class="box-title">AI Triage Output</span>
+        <button id="copyBtn" class="secondary-btn" type="button">Copy Report</button>
+      </div>
       <pre id="outputBox">Enter text or click a preset above, then tap "Run Hybrid AI".</pre>
     </div>
 
     <div class="box">
-      <div class="box-title">Recent Run Telemetry Log</div>
+      <div class="box-header">
+        <span class="box-title">Recent Run Telemetry Log</span>
+        <button id="clearLogBtn" class="secondary-btn" type="button">Clear Log</button>
+      </div>
       <ul id="historyList" class="log-list">
         <li>No runs recorded yet.</li>
       </ul>
@@ -212,6 +225,8 @@
     const promptInput = document.getElementById("promptInput");
     const modeSelect = document.getElementById("modeSelect");
     const runBtn = document.getElementById("runBtn");
+    const copyBtn = document.getElementById("copyBtn");
+    const clearLogBtn = document.getElementById("clearLogBtn");
     const statusVal = document.getElementById("statusVal");
     const routeVal = document.getElementById("routeVal");
     const latencyVal = document.getElementById("latencyVal");
@@ -227,6 +242,33 @@
         promptInput.value = PRESETS[key] || "";
         promptInput.focus();
       });
+    });
+
+    copyBtn.addEventListener("click", async () => {
+      const textToCopy = outputBox.textContent || "";
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(textToCopy);
+        } else {
+          const temp = document.createElement("textarea");
+          temp.value = textToCopy;
+          document.body.appendChild(temp);
+          temp.select();
+          document.execCommand("copy");
+          document.body.removeChild(temp);
+        }
+        const prev = copyBtn.textContent;
+        copyBtn.textContent = "Copied!";
+        setTimeout(() => { copyBtn.textContent = prev; }, 1200);
+      } catch {
+        copyBtn.textContent = "Copy Ready";
+        setTimeout(() => { copyBtn.textContent = "Copy Report"; }, 1200);
+      }
+    });
+
+    clearLogBtn.addEventListener("click", () => {
+      historyList.innerHTML = "<li>No runs recorded yet.</li>";
+      hasHistory = false;
     });
 
     function hasRealConfig() {
