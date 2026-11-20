@@ -3,7 +3,18 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PulseGuard Hybrid AI — #BuildHybridAI</title>
+  <title>PulseGuard Hybrid AI — #BuildHybridAI</title> 
+  <script type="importmap">
+{
+  "imports": {
+    "firebase/app": "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js",
+    "firebase/auth": "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js",
+    "firebase/firestore": "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js",
+    "firebase/app-check": "https://www.gstatic.com/firebasejs/11.0.0/firebase-app-check.js",
+    "firebase/ai-logic": "https://www.gstatic.com/firebasejs/11.0.0/firebase-ai-logic.js"
+  }
+}
+  </script>
   <style>
     * { box-sizing: border-box; }
     body {
@@ -205,7 +216,7 @@
     </div>
   </div>
 
-  <script type="module">
+  <script type="module"> import { runCloudTriage, isFirebaseConfigured } from './firebase.js';
     // Keep public repository free of real secrets; replace placeholders only in safe local/private test setups.
     const firebaseConfig = {
       apiKey: "REPLACE_WITH_API_KEY",
