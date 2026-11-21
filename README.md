@@ -6,7 +6,7 @@
 
 ## 🔴 Live Demo
 
-**【entity-GitHub Pages¦canonical_name=GitHub】:** https://shehrozali12-droid.github.io/pulseguard-hybrid-ai/
+**【entity-GitHub Pages¦canonical_name=GitHub】:** https://muhammadshehrozali12-droid.github.io/pulseguard-hybrid-ai/
 
 > Free & unrestricted access until judging ends (16 Dec 2026).
 > No login required. Anonymous Auth is used in background.
