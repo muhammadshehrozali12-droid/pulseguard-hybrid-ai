@@ -1,23 +1,51 @@
-# PulseGuard Hybrid AI
+# PulseGuard Hybrid AI — #BuildHybridAI 2026
 
-An incident triage and hybrid AI routing web application built for **#BuildHybridAI 2026**.  
-It combines fast local/heuristic triage, cloud routing awareness (designed for **Firebase AI Logic** with project `pulseguard-hybrid-ai-a5d68`), live latency/routing telemetry, one-click incident presets, and resilient fallback handling.
+> **Hybrid triage assistant with routing telemetry.**
+> Small / sensitive work runs **LOCAL** (fast + private).
+> Large / complex work runs **CLOUD** via **Firebase AI Logic**.
 
-## Live Demo
-- **GitHub Pages:** `https://muhammadshehrozali12-droid.github.io/pulseguard-hybrid-ai/`
+## 🔴 Live Demo
 
-## Key Features & Extras
-- **Hybrid Routing Modes:** Supports `Auto (Hybrid)`, `Local / Fast Triage`, and `Cloud (Firebase AI Logic)` selection.
-- **Transparent Routing Telemetry:** Displays active route, routing reason, execution latency (`ms`), and estimated severity (`HIGH` / `MEDIUM`).
-- **One-Click Incident Presets:** Built-in test scenarios for **CPU Spike**, **Auth Anomaly**, and **Support Ticket** triage.
-- **Recent Run Telemetry Log:** Tracks recent runs with timestamps, selected routes, latency, and routing reasons.
-- **Resilient Fallback:** Gracefully handles missing/placeholder cloud configuration or runtime errors without freezing the UI.
+**【entity-GitHub Pages¦canonical_name=GitHub】:** https://shehrozali12-droid.github.io/pulseguard-hybrid-ai/
 
-## How Hybrid Routing Works
-1. **Explicit Selection:** Selecting `Local / Fast Triage` or `Cloud (Firebase AI Logic)` forces the chosen path.
-2. **Auto Mode:** Routes longer prompts (`> 240` characters) or high-severity/security/outage indicators toward cloud triage, while handling shorter prompts rapidly via local/fast triage.
+> Free & unrestricted access until judging ends (16 Dec 2026).
+> No login required. Anonymous Auth is used in background.
 
-## Security & Configuration Note
-- Placeholder `firebaseConfig` values are intentionally used in this public repository so sensitive keys/credentials are never exposed in public commits.
-- When testing with real Firebase credentials locally or in a private environment, keep real keys out of public branches/commits.
-- 
+## 🎯 Real-World Problem
+
+On-call engineers, SREs and support teams get 100s of alerts daily. Every alert going to cloud is slow, expensive, and leaks sensitive data.
+
+**PulseGuard solves this with Hybrid Inference:**
+- Quick triage → On-device / Local (fast, private, offline-safe)
+- Deep analysis → Cloud via Firebase AI Logic (powerful, Gemini)
+- Sensitive data → Never leaves device when Privacy Mode is ON
+
+## ✨ Core Features
+
+### 1. Routing Modes (Hybrid Inference)
+| Mode | Behaviour |
+| :--- | :--- |
+| **Auto (Hybrid)** | `<= 40 words / 240 chars` → LOCAL, else → CLOUD |
+| **Local / Fast Triage** | Always LOCAL — Gemini Nano 4 style on-device triage |
+| **Cloud (Firebase AI Logic)** | Always CLOUD — `getAI()` + `getGenerativeModel(gemini-2.5-flash)` |
+
+### 2. Three Super Cloud Features
+1.  **Structured AI Triage:** `SEVERITY + CONFIDENCE + EVIDENCE + ESCALATE + ACTIONS + ROOT CAUSE`
+2.  **Auto-Escalation:** Cloud decides `ESCALATE: YES / NO` with reason
+3.  **Proof + Transparency:** Every run shows `Route + Model + Latency + App Check + Firestore Log`
+
+### 3. Core Triage & Diagnostic Output
+- Status, Active Route, Latency, Routing Reason
+- Severity Estimate, Confidence Score, Evidence
+- Telemetry Log of all recent runs
+
+### 4. Privacy Mode
+- `Privacy: ON` → Forces LOCAL, even for long prompts
+- Sensitive auth / security data stays on-device
+
+### 5. Resilient Fallback
+- If Firebase is not configured (public demo) → Safe Local Fallback
+- If Cloud fails → Safe Local Fallback
+- **App never crashes.**
+
+## 🏗️ Hybrid Architecture
