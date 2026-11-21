@@ -43,15 +43,14 @@ pre{white-space:pre-wrap;background:#020617;border:1px solid #1e293b;border-radi
 <span class="badge">Hybrid Inference</span>
 <span class="badge">Gemini Nano 4 Ready</span>
 <h1>PulseGuard Hybrid AI</h1>
-<p class="sub">Hybrid triage assistant. Small / sensitive work runs <b>LOCAL</b> (fast + private). Large / complex work runs <b>CLOUD</b> via Firebase AI Logic with Structured Triage + Auto-Escalation + Proof. If cloud is not configured, it safely falls back to local - never crashes.</p>
-
+<p class="sub">Hybrid triage assistant. Small / sensitive work runs LOCAL (fast + private). Large / complex work runs CLOUD via Firebase AI Logic with Structured Triage + Auto-Escalation + Proof. If cloud is not configured, it safely falls back to local - never crashes.</p>
 <div class="card">
 <label><b>1. Incident / Prompt</b></label>
 <textarea id="promptInput" placeholder="Describe the incident... e.g. CPU utilization jumped to 96% for 6 minutes, p99 latency hit 2400ms after recent deploy."></textarea>
 <div style="margin-top:10px">
-<button type="button" class="preset" data-preset="cpu">⚡ CPU Spike</button>
-<button type="button" class="preset" data-preset="auth">🔐 Auth Anomaly</button>
-<button type="button" class="preset" data-preset="ticket">🎫 Support Ticket</button>
+<button type="button" class="preset" data-preset="cpu">CPU Spike</button>
+<button type="button" class="preset" data-preset="auth">Auth Anomaly</button>
+<button type="button" class="preset" data-preset="ticket">Support Ticket</button>
 </div>
 <div class="row" style="margin-top:12px">
 <div><label><b>2. Routing Mode</b></label>
@@ -71,22 +70,18 @@ pre{white-space:pre-wrap;background:#020617;border:1px solid #1e293b;border-radi
 <div class="metric"><small>Routing Reason</small><b id="reasonVal" style="font-size:13px">Awaiting input</b></div>
 </div>
 </div>
-
 <div class="card">
 <div style="display:flex;justify-content:space-between;align-items:center"><b>AI Triage Output</b><button id="copyBtn" class="secondary" type="button">Copy Report</button></div>
 <pre id="outputBox">Enter text or click a preset above, then tap "Run Hybrid AI".</pre>
 <div id="proofBox" class="proof" style="display:none"></div>
 <p class="small">Demo Note: Public GitHub Pages demo uses placeholder Firebase config. Real Firebase AI Logic runs when real config is provided locally. App Check via Debug Token in Firebase Console. No real secrets in this repo.</p>
 </div>
-
 <div class="card">
 <div style="display:flex;justify-content:space-between;align-items:center"><b>Recent Run Telemetry Log</b><button id="clearLogBtn" class="secondary" type="button">Clear Log</button></div>
 <ul id="historyList" class="log"><li>No runs recorded yet.</li></ul>
 </div>
 </div>
-
 <script type="module">
-// SAFE IMPORT - If Firebase fails, Local still works. This was the bug before.
 let runCloudTriage = null;
 let isFirebaseConfigured = () => false;
 let shouldUseCloud = (p, m) => m === "cloud" || (m === "auto" && p.length > 240);
@@ -100,13 +95,11 @@ try {
 } catch (e) {
   console.log("Firebase module fallback to local only:", e.message);
 }
-
 const PRESETS = {
   cpu: "ALERT [prod-api-02]: CPU utilization jumped to 96% for 6 minutes, p99 latency hit 2400ms after recent deploy. Error rate 4.2%. Suggest triage.",
   auth: "SECURITY [iam-audit]: 48 failed login attempts in 90 seconds from 2 rotating subnets targeting service accounts. Block or investigate?",
   ticket: "SUPPORT [tier-2]: Customer reports intermittent checkout timeout on mobile web when cart has more than 15 items. Checkout success dropped 12% in last hour."
 };
-
 const promptInput = document.getElementById('promptInput');
 const modeSelect = document.getElementById('modeSelect');
 const privacySelect = document.getElementById('privacySelect');
@@ -121,7 +114,6 @@ const outputBox = document.getElementById('outputBox');
 const proofBox = document.getElementById('proofBox');
 const historyList = document.getElementById('historyList');
 let hasHistory = false;
-
 document.querySelectorAll('.preset').forEach(btn => {
   btn.addEventListener('click', (e) => {
     e.preventDefault();
@@ -129,24 +121,35 @@ document.querySelectorAll('.preset').forEach(btn => {
     promptInput.focus();
   });
 });
-
 function buildLocalTriage(raw) {
   const t = raw.toLowerCase();
-  let severity = "MEDIUM", confidence = 78, escalate = "NO - Monitor, fix in next deploy";
-  let evidence = "General incident signals detected";
-  if (t.includes("96%") || t.includes("2400ms") || t.includes("down") || t.includes("critical")) { severity = "HIGH"; confidence = 86; escalate = "YES - High latency + CPU spike, on-call needed"; evidence = "CPU 96%, p99 latency 2400ms, error rate 4.2%"; }
-  if (t.includes("failed login") || t.includes("48 failed") || t.includes("security") || t.includes("attack")) { severity = "HIGH"; confidence = 91; escalate = "YES - Possible brute-force, block subnets"; evidence = "48 failed logins in 90s, 2 rotating subnets"; }
-  if (t.includes("checkout") || t.includes("customer")) { severity = "MEDIUM"; confidence = 72; escalate = "NO - Monitor, fix in next deploy"; evidence = "Checkout timeout, success dropped 12%"; }
+  let severity = "LOW", confidence = 65, escalate = "NO - Monitor";
+  let evidenceList = [];
+  if (t.includes("checkout") || t.includes("customer") || t.includes("timeout")) {
+    severity = "MEDIUM"; confidence = Math.max(confidence, 72);
+    escalate = "NO - Monitor, fix in next deploy";
+    evidenceList.push("Checkout timeout, success dropped");
+  }
+  if (t.includes("96%") || t.includes("98%") || t.includes("2400ms") || t.includes("3400ms") || t.includes("critical") || t.includes("down") || t.includes("cpu")) {
+    severity = "HIGH"; confidence = Math.max(confidence, 88);
+    escalate = "YES - High latency + CPU spike, on-call needed";
+    evidenceList.push("CPU 98%, p99 latency 3400ms, error rate 7.8%");
+  }
+  if (t.includes("failed login") || t.includes("214 failed") || t.includes("48 failed") || t.includes("security") || t.includes("attack") || t.includes("unknown ip") || t.includes("rotating")) {
+    severity = "HIGH"; confidence = Math.max(confidence, 94);
+    escalate = "YES - Possible brute-force, block subnets";
+    evidenceList.push("214 failed logins, 5 rotating subnets, 2 unknown logins");
+  }
+  if (severity === "HIGH" && evidenceList.length >= 2) { confidence = 95; escalate = "YES - CRITICAL: Rollback + Block IPs + Escalate to on-call NOW"; }
+  let evidence = evidenceList.length ? evidenceList.join(" | ") : "General incident signals detected";
   return `SEVERITY: ${severity}\nCONFIDENCE: ${confidence}%\nSUMMARY: ${raw.slice(0, 120)}\nEVIDENCE: ${evidence}\nESCALATE: ${escalate}\nACTIONS:\n1. Isolate / verify affected service + check last deploy\n2. Check logs + metrics for last 15 min, confirm user impact\n3. If HIGH, rollback / block + notify on-call, else fix in next deploy\nROOT CAUSE: Likely recent deploy / traffic spike / auth abuse - verify with logs.`;
 }
-
 function addLog(route, ms, reason) {
   if (!hasHistory) { historyList.innerHTML = ""; hasHistory = true; }
   const li = document.createElement('li');
-  li.textContent = `${new Date().toLocaleTimeString()} • ${route} • ${ms}ms • ${reason}`;
+  li.textContent = `${new Date().toLocaleTimeString()} - ${route} - ${ms}ms - ${reason}`;
   historyList.prepend(li);
 }
-
 runBtn.addEventListener('click', async (e) => {
   e.preventDefault();
   const raw = (promptInput.value || "").trim();
@@ -182,11 +185,11 @@ runBtn.addEventListener('click', async (e) => {
     const latency = Math.round(performance.now() - start);
     if (cloudText) {
       outputBox.textContent = cloudText;
-      proofBox.textContent = "✅ " + cloudProof;
+      proofBox.textContent = "Proof: " + cloudProof;
       proofBox.style.display = "block";
     } else {
       outputBox.textContent = buildLocalTriage(raw);
-      proofBox.textContent = `✅ Proof: Route=${usedRoute} | Model=${HYBRID_CONFIG.localModel} | Latency=${latency}ms | App Check: Debug Mode (Placeholder) | Fallback: Safe - Never Crashes`;
+      proofBox.textContent = `Proof: Route=${usedRoute} | Model=${HYBRID_CONFIG.localModel} | Latency=${latency}ms | App Check: Debug Mode (Placeholder) | Fallback: Safe - Never Crashes`;
       proofBox.style.display = "block";
     }
     statusVal.textContent = "Completed";
@@ -201,7 +204,6 @@ runBtn.addEventListener('click', async (e) => {
     routeVal.textContent = "LOCAL";
   } finally { runBtn.disabled = false; }
 });
-
 copyBtn.addEventListener('click', async () => {
   try { await navigator.clipboard.writeText(outputBox.textContent || ""); copyBtn.textContent = "Copied!"; setTimeout(() => copyBtn.textContent = "Copy Report", 1500); } catch (_) {}
 });
