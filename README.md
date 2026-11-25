@@ -3,7 +3,7 @@
 > **Hybrid triage assistant with routing telemetry.**
 > Small / sensitive work runs **LOCAL** (fast + private).
 > Large / complex work runs **CLOUD** via **Firebase AI Logic**.
-
+Built 100% on Android mobile, GitHub Mobile App, No laptop. Designed mobile-first, offline-first, privacy-aware for limited connectivity.
 ## 🔴 Live Demo
 
 **【entity-GitHub Pages¦canonical_name=GitHub】:** https://muhammadshehrozali12-droid.github.io/pulseguard-hybrid-ai/
