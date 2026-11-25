@@ -6,7 +6,7 @@
 Built 100% on Android mobile, GitHub Mobile App, No laptop. Designed mobile-first, offline-first, privacy-aware for limited connectivity.
 ## 🔴 Live Demo
 
-**【entity-GitHub Pages¦canonical_name=GitHub】:** https://muhammadshehrozali12-droid.github.io/pulseguard-hybrid-ai/
+Live Demo: https://muhammadshehrozali12-droid.github.io/pulseguard-hybrid-ai/
 
 > Free & unrestricted access until judging ends (16 Dec 2026).
 > No login required. Anonymous Auth is used in background.
